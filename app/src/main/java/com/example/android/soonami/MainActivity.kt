@@ -18,6 +18,7 @@ package com.example.android.soonami
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.widget.TextView
@@ -143,7 +144,13 @@ class MainActivity : AppCompatActivity() {
          */
         @Throws(IOException::class)
         private fun makeHttpRequest(url: URL): String {
-            var jsonResponse = ""
+            var jsonResponse: String = ""
+
+            // If the URL is null, then return early.
+            if(url == null) {
+                return jsonResponse
+            }
+
             var urlConnection: HttpURLConnection? = null
             var inputStream: InputStream? = null
             try {
@@ -152,13 +159,26 @@ class MainActivity : AppCompatActivity() {
                 urlConnection.readTimeout = 10000
                 urlConnection.connectTimeout = 15000
                 urlConnection.connect()
+
+                // If the request was successful (response code 200),
+                // then read the input stream and parse the response.
+                if (urlConnection.getResponseCode() == 200) {
+                    inputStream = urlConnection.getInputStream()
+                    jsonResponse = this.readFromStream(inputStream)
+                }
+
                 inputStream = urlConnection.inputStream
                 jsonResponse = readFromStream(inputStream)
             } catch (e: IOException) {
                 // TODO: Handle the exception
             } finally {
-                urlConnection?.disconnect()
-                inputStream?.close()
+                if (urlConnection != null) {
+                    urlConnection.disconnect()
+                }
+                if (inputStream != null) {
+                    // function must handle java.io.IOException here
+                    inputStream.close()
+                }
             }
             return jsonResponse
         }
@@ -187,6 +207,11 @@ class MainActivity : AppCompatActivity() {
          * about the first earthquake from the input earthquakeJSON string.
          */
         private fun extractFeatureFromJson(earthquakeJSON: String): Event? {
+            // If the JSON string is empty or null, then return early.
+            if (TextUtils.isEmpty(earthquakeJSON)) {
+                return null
+            }
+
             try {
                 val baseJsonResponse = JSONObject(earthquakeJSON)
                 val featureArray: JSONArray = baseJsonResponse.getJSONArray("features")
