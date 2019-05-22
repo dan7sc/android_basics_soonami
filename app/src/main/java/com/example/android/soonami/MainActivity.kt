@@ -15,6 +15,7 @@
  */
 package com.example.android.soonami
 
+import android.annotation.SuppressLint
 import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
@@ -22,8 +23,8 @@ import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.widget.TextView
-
 import org.json.JSONArray
+
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -81,10 +82,10 @@ class MainActivity : AppCompatActivity() {
      * Return the display string for whether or not there was a tsunami alert for an earthquake.
      */
     private fun getTsunamiAlertString(tsunamiAlert: Int): String {
-        when (tsunamiAlert) {
-            0 -> return getString(R.string.alert_no)
-            1 -> return getString(R.string.alert_yes)
-            else -> return getString(R.string.alert_not_available)
+        return when (tsunamiAlert) {
+            0 -> getString(R.string.alert_no)
+            1 -> getString(R.string.alert_yes)
+            else -> getString(R.string.alert_not_available)
         }
     }
 
@@ -92,6 +93,7 @@ class MainActivity : AppCompatActivity() {
      * [AsyncTask] to perform the network request on a background thread, and then
      * update the UI with the first earthquake in the response.
      */
+    @SuppressLint("StaticFieldLeak")
     private inner class TsunamiAsyncTask : AsyncTask<URL, Void, Event>() {
 
         override fun doInBackground(vararg urls: URL): Event? {
@@ -101,9 +103,9 @@ class MainActivity : AppCompatActivity() {
             // Perform HTTP request to the URL and receive a JSON response back
             var jsonResponse = ""
             try {
-                jsonResponse = makeHttpRequest(url!!)
+                jsonResponse = makeHttpRequest(url)
             } catch (e: IOException) {
-                // TODO Handle the IOException
+                Log.e(LOG_TAG, "Problem making the HTTP request.", e)
             }
 
             // Extract relevant fields from the JSON response and create an {@link Event} object
@@ -143,11 +145,11 @@ class MainActivity : AppCompatActivity() {
          * Make an HTTP request to the given URL and return a String as the response.
          */
         @Throws(IOException::class)
-        private fun makeHttpRequest(url: URL): String {
-            var jsonResponse: String = ""
+        private fun makeHttpRequest(url: URL?): String {
+            var jsonResponse = ""
 
             // If the URL is null, then return early.
-            if(url == null) {
+            if (url == null) {
                 return jsonResponse
             }
 
@@ -162,23 +164,17 @@ class MainActivity : AppCompatActivity() {
 
                 // If the request was successful (response code 200),
                 // then read the input stream and parse the response.
-                if (urlConnection.getResponseCode() == 200) {
-                    inputStream = urlConnection.getInputStream()
-                    jsonResponse = this.readFromStream(inputStream)
+                if (urlConnection.responseCode == 200) {
+                    inputStream = urlConnection.inputStream
+                    jsonResponse = readFromStream(inputStream)
+                } else {
+                    Log.e(LOG_TAG, "Error response code: " + urlConnection.responseCode)
                 }
-
-                inputStream = urlConnection.inputStream
-                jsonResponse = readFromStream(inputStream)
             } catch (e: IOException) {
-                // TODO: Handle the exception
+                Log.e(LOG_TAG, "Problem retrieving the earthquake JSON results.", e)
             } finally {
-                if (urlConnection != null) {
-                    urlConnection.disconnect()
-                }
-                if (inputStream != null) {
-                    // function must handle java.io.IOException here
-                    inputStream.close()
-                }
+                urlConnection?.disconnect()
+                inputStream?.close()
             }
             return jsonResponse
         }
@@ -241,9 +237,9 @@ class MainActivity : AppCompatActivity() {
     companion object {
 
         /** Tag for the log messages  */
-        val LOG_TAG = MainActivity::class.java.simpleName
+        val LOG_TAG: String = MainActivity::class.java.simpleName
 
         /** URL to query the USGS dataset for earthquake information  */
-        private val USGS_REQUEST_URL: String = "https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2012-01-01&endtime=2012-12-01&minmagnitude=6"
+        private const val USGS_REQUEST_URL = "http://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=2014-01-01&endtime=2014-12-01&minmagnitude=7"
     }
 }
